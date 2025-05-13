@@ -13,6 +13,7 @@ import com.google.maps.model.ComponentFilter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
+import myParking_Backend.Backend.EmailService.EmailService;
 import myParking_Backend.Backend.Parking.Prices.Enum.Policy;
 import myParking_Backend.Backend.Parking.Prices.PolicyPrices.*;
 import myParking_Backend.Backend.Parking.ResponceEntities.ResponceCities;
@@ -58,13 +59,15 @@ public class Controller_Parking {
     @Value("${google.api.key}") // το βάζεις στο application.properties
     private String apiKey;
     private final Path uploadDir = Paths.get("uploads");
+    private EmailService emailService;
 
 
     @Autowired
-    public Controller_Parking(Service_Users service_Users, Service_Parking service_parking, WebSocketController webSocketController) {
+    public Controller_Parking(Service_Users service_Users, Service_Parking service_parking, WebSocketController webSocketController, EmailService emailService) {
         this.service_Users = service_Users;
         this.service_parking = service_parking;
         this.webSocketController = webSocketController;
+        this.emailService = emailService;
     }
 
 
@@ -72,6 +75,7 @@ public class Controller_Parking {
      ------------------------OWNER'S CONTROLLER------------------------------
      */
 
+    //todo ΝΑ ΔΙΟΡΘΩΣΩ ΤΑ ΜΗΝΥΜΑΤΑ ΩΣ ΠΡΟΣ ΤΗΝ ΚΑΤΑΧΩΡΗΣΗ
     @Transactional
     @PostMapping("/newParking")
     public ResponseEntity<?> newParking(@RequestBody Map<String, Object> request, Authentication authentication) {
@@ -143,7 +147,9 @@ public class Controller_Parking {
             service_parking.savewithoneuser(parking, user);
             List<ResponceCities> cities = service_parking.getCities();
             webSocketController.broadcastCities(cities);
+            emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από διαχειριστή εφαρμογής.");
             return ResponseEntity.ok(Map.of("message", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από διαχειριστή εφαρμογής.)"));
+
         }
         Set<Users> users = new HashSet<>();
         for (String AfmOwner : AfmOwners) {
@@ -154,6 +160,7 @@ public class Controller_Parking {
             users.add(service_Users.getUserByAfm_Owner(user.getAfm_Owner()));
         }
         service_parking.savewithmanyusers(parking, users);
+        emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από έτερους ιδιοκτήτες και κατόπιν από διαχειριστή εφαρμογής.");
         return ResponseEntity.ok(Map.of("message", "Το πάρκινγκ καταχωρήθηκε με επιτυχία! (Αναμονή Έγκρισης από έτερους ιδιοκτήτες και κατόπιν από διαχειριστή εφαρμογής."));
         //todo email notification
 

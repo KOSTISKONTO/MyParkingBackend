@@ -1,14 +1,14 @@
 package myParking_Backend.Backend.Bookings;
-
-
 import com.google.maps.DistanceMatrixApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.model.DistanceMatrix;
 import com.google.maps.model.DistanceMatrixRow;
+import com.google.maps.model.TravelMode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import myParking_Backend.Backend.Bookings.ResponceEntities.ResponcemyBookings;
+import myParking_Backend.Backend.EmailService.EmailService;
 import myParking_Backend.Backend.Parking.Parking;
 import myParking_Backend.Backend.Parking.Prices.Enum.DayType;
 import myParking_Backend.Backend.Parking.Prices.Enum.Policy;
@@ -16,7 +16,8 @@ import myParking_Backend.Backend.Parking.Prices.PolicyPrices.*;
 import myParking_Backend.Backend.Parking.ResponceEntities.ResponceCities;
 import myParking_Backend.Backend.Parking.Service_Parking;
 import myParking_Backend.Backend.Users.Users;
-
+import org.springframework.web.util.UriComponentsBuilder;
+//olbo drmi rrjx yfxv
 import java.net.URLDecoder;
 import java.time.*;
 import java.util.*;
@@ -49,6 +50,7 @@ public class Controller_Booking {
     private final Service_Booking service_Booking;
     private final Service_Parking service_parking;
     private WebSocketController webSocketController;
+    private EmailService emailService;
     @Value("${google.api.key}") // το βάζεις στο application.properties
     private String apiKey;
 
@@ -57,10 +59,11 @@ public class Controller_Booking {
     private EntityManager entityManager;
 
     @Autowired
-    public Controller_Booking(Service_Booking service_Booking, Service_Parking serviceParking, WebSocketController webSocketController) {
+    public Controller_Booking(Service_Booking service_Booking, Service_Parking serviceParking, WebSocketController webSocketController, EmailService emailservice) {
         this.service_Booking = service_Booking;
         this.service_parking = serviceParking;
         this.webSocketController = webSocketController;
+        this.emailService = emailservice;
 
     }
 
@@ -82,7 +85,6 @@ public class Controller_Booking {
         List<Map<String, Object>> parkingsresponces = new ArrayList<>();
         List<Parking> parkings = this.service_parking.getParkingsByCity(City);
 
-        System.out.println("kakakakaka");
         System.out.println("Μέγεθος Πάρκινγ: " + parkings.size());
         System.out.println("Όνομα: " + parkings.get(0).getName_of_parking());
 
@@ -104,10 +106,12 @@ public class Controller_Booking {
 
             if (!parking.getIs24()) {
                 if (startDateTime.isBefore(open)) {
-
                     parkingresponce.put("isopen", false);
                 }
                 else if(startDateTime.isAfter(close)){
+                    parkingresponce.put("isopen", false);
+                }
+                else if(endDateTime.isEqual(close)){
                     parkingresponce.put("isopen", false);
                 }
                 else if(endDateTime.isAfter(close)){
@@ -289,6 +293,7 @@ public class Controller_Booking {
         Parking parking =  service_parking.getParkingById(booking.getBooking_parking().getId());
         LocalDate making_date = LocalDate.now();
         booking.setBooking_making_date(making_date);
+        String email;
         if (authentication!=null)
         {
             Users user;
@@ -298,11 +303,13 @@ public class Controller_Booking {
             booking.setNameguest(null);
             booking.setLastnameguest(null);
             booking.setEmailguest(null);
+            email=user.getEmail();
         }
         else{
             if(booking.getEmailguest()==null || booking.getNameguest()==null || booking.getLastnameguest()==null){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Ελλιπή Στοιχεία"));
             }
+            email = booking.getEmailguest();
         }
 
         parking = entityManager.merge(parking);
@@ -310,6 +317,7 @@ public class Controller_Booking {
         service_Booking.newBooking(booking);
         List<ResponceCities> popularcities = this.service_Booking.getpopularCities();
         webSocketController.broadcastCities(popularcities);
+        emailService.sendSimpleEmail(email, "Κράτηση", "Καταχωρήθηκε με επιτυχία!" );
         return ResponseEntity.ok(Map.of("message", "Καταχωρήθηκε με επιτυχία!"));
 
     }
@@ -352,21 +360,30 @@ public class Controller_Booking {
 
     }
 
-    @GetMapping("/coordinates")
+
+@GetMapping("/coordinates")
     public ResponseEntity<?> getLatLngFromAddress(@RequestParam String address) {
         try {
+            String[] split = address.split("\\s*,\\s*");
+            String city;
+            city = split[1];
+            System.out.println(city);
             String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + address + "&key=" + apiKey;
-
-
+            System.out.println("ADDRESS RECEIVED: " + address);
 
             RestTemplate restTemplate = new RestTemplate();
             String responseJson = restTemplate.getForObject(url, String.class);
-
-            System.out.println("RESPONSE FROM GOOGLE: " + responseJson);
+            System.out.println(responseJson);
 
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(responseJson);
-
+            String longName = root.path("results")
+                    .get(0)
+                    .path("address_components")
+                    .get(5)
+                    .path("long_name")
+                    .asText();
+            System.out.println(longName);
             String status = root.path("status").asText();
             if (!"OK".equals(status)) {
                 System.out.println("GOOGLE STATUS: " + status);
@@ -386,27 +403,58 @@ public class Controller_Booking {
 
 
 
-    @GetMapping("/distance")
-    public String getDistance(
-            @RequestParam String origin,
-            @RequestParam String destination) {
+
+    //@GetMapping("/distance")
+    public Map<String, String> getDistance(
+          String origin,
+           String destination) {
         try {
 
             GeoApiContext context = createContext();
-            DistanceMatrix matrix = DistanceMatrixApi.getDistanceMatrix(
-                    context,
-                    new String[]{origin},
-                    new String[]{destination}
-            ).await();
+            DistanceMatrix matrix = DistanceMatrixApi.newRequest(context)
+                    .origins(origin)
+                    .destinations(destination)
+                    .mode(TravelMode.WALKING) // 🦶 με τα πόδια
+                    .await();
 
             DistanceMatrixRow row = matrix.rows[0];
-            return "Απόσταση: " + row.elements[0].distance.humanReadable +
-                    ", Διάρκεια: " + row.elements[0].duration.humanReadable;
+            //return "Απόσταση: " + row.elements[0].distance.humanReadable +
+              //      ", Διάρκεια: " + row.elements[0].duration.humanReadable;
+            Map<String, String> responce = new HashMap<>();
+            responce.put("Distance", row.elements[0].distance.humanReadable);
+            responce.put("Duration", row.elements[0].duration.humanReadable);
+            return  responce;
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "Σφάλμα κατά τον υπολογισμό απόστασης.";
+            Map<String, String> responce = new HashMap<>();
+            responce.put("error", "Σφάλμα κατά τον υπολογισμό απόστασης.");
+            return  responce;
+           // return "Σφάλμα κατά τον υπολογισμό απόστασης.";
         }
+    }
+
+
+    @GetMapping("/todo")
+    public ResponseEntity<?> todo(@RequestParam String address){
+        List<Map<String, String>> responce = new ArrayList<>();
+        String[] split = address.split("\\s*,\\s*");
+        String city;
+        if(split.length==3) city=split[1];
+        else city=split[0];
+        List<Parking> parkings = service_parking.getParkingsByCity(city);
+        for (Parking parking:parkings){
+            Map<String, String> responceparking = new HashMap<>();
+            String addressofparking = parking.getAddress() + ", " + parking.getCity() + ", " + " Ελλάδα";
+            responceparking = getDistance(address, addressofparking);
+            responceparking.put("Name", parking.getName_of_parking());
+            responceparking.put("Address", parking.getAddress());
+            responceparking.put("City", city);
+            responce.add(responceparking);
+            //System.out.println(responceparking);
+        }
+        return ResponseEntity.ok(responce);
+
     }
 
 

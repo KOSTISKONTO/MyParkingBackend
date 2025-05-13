@@ -2,6 +2,7 @@ package myParking_Backend.Backend.Users;
 import jakarta.transaction.Transactional;
 import myParking_Backend.Backend.Bookings.Booking;
 import myParking_Backend.Backend.Bookings.Service_Booking;
+import myParking_Backend.Backend.EmailService.EmailService;
 import myParking_Backend.Backend.JWT.JwtUtil;
 import myParking_Backend.Backend.Parking.Parking;
 import myParking_Backend.Backend.Parking.Service_Parking;
@@ -33,15 +34,17 @@ public class Controller_User {
     private final PasswordEncoder passwordEncoder;
     private final Service_Parking service_parking;
     private final Service_Booking service_Booking;
+    private EmailService emailService;
 
     @Autowired
-    public Controller_User(JwtUtil jwtUtil, AuthenticationManager authenticationManager, Service_Users service_test, PasswordEncoder passwordEncoder, Service_Parking serviceParking, Service_Booking serviceBooking ) {
+    public Controller_User(JwtUtil jwtUtil, AuthenticationManager authenticationManager, Service_Users service_test, PasswordEncoder passwordEncoder, Service_Parking serviceParking, Service_Booking serviceBooking, EmailService emailService ) {
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.service = service_test;
         this.passwordEncoder = passwordEncoder;
         this.service_parking = serviceParking;
         this.service_Booking = serviceBooking;
+        this.emailService = emailService;
     }
 
 
@@ -56,6 +59,11 @@ public class Controller_User {
         Set<String> roles = new HashSet<>();
         roles.add("ROLE_CUSTOMER");
         service.saveuser(user, roles);
+        String email = user.getEmail();
+        String subject = "Επιτυχής Εγγραφή στο myParking!";
+        String body = user.getUsername() + "καλωσήρθες στο myParking! Σε ευχαριστούμε για την εγγραφή. Ήρθε η ώρα για την πρώτη σου κράτηση. Μπες στην εφαρμογή: " +
+                "http:localhost:4200 " + "και ξεκίνα!";
+        this.emailService.sendSimpleEmail(email, subject, body);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Καταχωρήθηκε"));
     }
 
@@ -66,6 +74,11 @@ public class Controller_User {
         Set<String> roles = new HashSet<>();
         roles.add("ROLE_OWNER");
         service.saveuser(user, roles);
+        String email = user.getEmail();
+        String subject = "Επιτυχής Εγγραφή στο myParking!";
+        String body = user.getUsername() + "καλωσήρθες στο myParking! Σε ευχαριστούμε για την εγγραφή. Μπες στην εφαρμογή: " +
+                "http:localhost:4200/login " + "και ξεκίνα να διαχειρίζεσαι το pakring σου!";
+        this.emailService.sendSimpleEmail(email, subject, body);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Καταχωρήθηκε"));
     }
 

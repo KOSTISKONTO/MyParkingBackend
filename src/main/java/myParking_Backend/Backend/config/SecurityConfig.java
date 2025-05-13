@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         //.requestMatchers("/test/register").permitAll()  // Επιτρέπει το register χωρίς login
                         .requestMatchers("/booking/distance").permitAll()
+                        .requestMatchers("/booking/todo").permitAll()
                         .requestMatchers("/getCustomers").hasRole("ADMIN")
                         .requestMatchers("/getOwners").hasRole("ADMIN")
                         .requestMatchers("/login").permitAll()
