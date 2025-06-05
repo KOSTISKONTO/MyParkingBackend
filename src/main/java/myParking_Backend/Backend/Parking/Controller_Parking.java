@@ -229,9 +229,12 @@ public class Controller_Parking {
     ) {
         Users user = (Users) authentication.getPrincipal();
         Set<Parking> parkings = service_parking.getParkingByUsers(user);
+
         boolean exists=false;
         for (Parking p:parkings){
-            if (p.getId()==id){
+
+            if (p.getId().equals(id)){
+
                 exists=true;
                 break;
             }

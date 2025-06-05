@@ -16,8 +16,7 @@ import myParking_Backend.Backend.Parking.Prices.PolicyPrices.*;
 import myParking_Backend.Backend.Parking.ResponceEntities.ResponceCities;
 import myParking_Backend.Backend.Parking.Service_Parking;
 import myParking_Backend.Backend.Users.Users;
-import org.springframework.web.util.UriComponentsBuilder;
-//olbo drmi rrjx yfxv
+
 import java.net.URLDecoder;
 import java.time.*;
 import java.util.*;
@@ -75,10 +74,12 @@ public class Controller_Booking {
     }
 
 
+    //---------------Availability of parking------------------------------------------//
+
     @GetMapping("/availability")
     public ResponseEntity<?> availability(@RequestParam String City, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
-                                          @RequestParam int hours){
+                                          @RequestParam int hours) {
         City = URLDecoder.decode(City, StandardCharsets.UTF_8);
         System.out.println(City);
         Map<String, Object> response = new HashMap<>();
@@ -89,16 +90,18 @@ public class Controller_Booking {
         System.out.println("Όνομα: " + parkings.get(0).getName_of_parking());
 
 
-
         String daytype;
         DayOfWeek day = date.getDayOfWeek();
-        if(day==DayOfWeek.SATURDAY || day==DayOfWeek.SUNDAY)
-            daytype="Weekend";
-        else daytype="Daily";
+        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY)
+            daytype = "Weekend";
+        else daytype = "Daily";
         LocalDateTime startDateTime = LocalDateTime.of(date, time);
         LocalDateTime endDateTime = startDateTime.plusHours(hours);
 
-        for (Parking parking:parkings){
+        for (Parking parking : parkings) {
+
+            if (parking.getIsactive()) {
+
             Map<String, Object> parkingresponce = new HashMap<>();
             LocalDateTime open = LocalDateTime.of(date, parking.getStartworking());
             LocalDateTime close = LocalDateTime.of(date, parking.getEndworking());
@@ -107,40 +110,34 @@ public class Controller_Booking {
             if (!parking.getIs24()) {
                 if (startDateTime.isBefore(open)) {
                     parkingresponce.put("isopen", false);
-                }
-                else if(startDateTime.isAfter(close)){
+                } else if (startDateTime.isAfter(close)) {
                     parkingresponce.put("isopen", false);
-                }
-                else if(endDateTime.isEqual(close)){
+                } else if (endDateTime.isEqual(close)) {
                     parkingresponce.put("isopen", false);
-                }
-                else if(endDateTime.isAfter(close)){
+                } else if (endDateTime.isAfter(close)) {
                     LocalTime newtime = endDateTime.toLocalTime();
-                    if (!(newtime.isAfter(parking.getStartworking()) && parking.getAccept24())){
+                    if (!(newtime.isAfter(parking.getStartworking()) && parking.getAccept24())) {
 
                         parkingresponce.put("isopen", false);
-                    }
-                    else{
+                    } else {
                         parkingresponce.put("isopen", true);
                     }
-                }
-                else {
+                } else {
                     parkingresponce.put("isopen", true);
                 }
-            }
-            else{
+            } else {
                 parkingresponce.put("isopen", true);
             }
             LocalTime endTime = time.plusHours(hours);
             List<Booking> bookings = service_Booking.getBookingsByDateandTime(date, time, endTime);
-            if(bookings.size()<parking.getTotal_spaces()){
+            if (bookings.size() < parking.getTotal_spaces()) {
                 parkingresponce.put("available", true);
                 Set<GeneralPolicy> policies = parking.getGeneralPolicyList();
-                for (GeneralPolicy policy : policies){
+                for (GeneralPolicy policy : policies) {
                     DayType inputDayType = DayType.valueOf(daytype);
-                    if(policy.getDayType()==(inputDayType)){
+                    if (policy.getDayType() == (inputDayType)) {
                         Policy pol = policy.getPolicy();
-                        switch(pol){
+                        switch (pol) {
                             case FlatCost -> {
                                 double cost = policy.getFlatCost().getFlatcost();
                                 parkingresponce.put("cost", cost);
@@ -156,14 +153,14 @@ public class Controller_Booking {
                                 double cost;
                                 List<Double> tohours = new ArrayList<>();
                                 List<Double> costs = new ArrayList<>();
-                                for (ByHourCustom byhourcst: byHoursCustom){
+                                for (ByHourCustom byhourcst : byHoursCustom) {
                                     tohours.add(byhourcst.getToHour());
                                     costs.add(byhourcst.getCost());
                                 }
                                 Collections.sort(tohours);
                                 Collections.sort(costs);
-                                for (int i=0; i<tohours.size(); i++){
-                                    if (hours<=tohours.get(i)){
+                                for (int i = 0; i < tohours.size(); i++) {
+                                    if (hours <= tohours.get(i)) {
                                         cost = costs.get(i);
                                         parkingresponce.put("cost", cost);
                                     }
@@ -172,24 +169,24 @@ public class Controller_Booking {
 
                             case ByHour -> {
                                 Set<ByHour> byHours = policy.getByHour();
-                                double cost =0;
+                                double cost = 0;
                                 List<Double> tohours = new ArrayList<>();
                                 List<Double> costs = new ArrayList<>();
-                                for (ByHour byhour: byHours){
+                                for (ByHour byhour : byHours) {
                                     tohours.add(byhour.getToHour());
                                     costs.add(byhour.getCost());
                                 }
                                 Collections.sort(tohours);
                                 Collections.sort(costs);
 
-                                for (int i=0; i<tohours.size(); i++){
-                                    if (hours<=tohours.get(i)){
+                                for (int i = 0; i < tohours.size(); i++) {
+                                    if (hours <= tohours.get(i)) {
                                         cost = hours * costs.get(i);
 
                                         parkingresponce.put("cost", cost);
                                         break;
                                     }
-                                    cost = cost + tohours.get(i)* costs.get(i);
+                                    cost = cost + tohours.get(i) * costs.get(i);
                                 }
 
                             }
@@ -200,20 +197,18 @@ public class Controller_Booking {
                                 LocalTime endTimee = time.plusHours(hours);
                                 double totalCost = 0.0;
                                 ByLocalTimeCustom by;
-                                for (int i=0; i<slots.size(); i++){
-                                    if ((time.equals(slots.get(i).getFromhour()) || time.isAfter(slots.get(i).getFromhour())) && time.isBefore(slots.get(i).getTohour())){
+                                for (int i = 0; i < slots.size(); i++) {
+                                    if ((time.equals(slots.get(i).getFromhour()) || time.isAfter(slots.get(i).getFromhour())) && time.isBefore(slots.get(i).getTohour())) {
                                         by = slots.get(i);
                                         totalCost = by.getCost();
-                                        if(endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour())){
+                                        if (endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour())) {
                                             break;
-                                        }
-                                        else {
-                                            for (i=i+1; i<slots.size(); i++){
-                                                if (!(endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour()))){
+                                        } else {
+                                            for (i = i + 1; i < slots.size(); i++) {
+                                                if (!(endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour()))) {
                                                     totalCost = totalCost + slots.get(i).getCost();
-                                                }
-                                                else{
-                                                    totalCost= totalCost + slots.get(i).getCost();
+                                                } else {
+                                                    totalCost = totalCost + slots.get(i).getCost();
                                                     break;
                                                 }
                                             }
@@ -224,31 +219,29 @@ public class Controller_Booking {
                                 parkingresponce.put("cost", Math.round(totalCost * 100.0) / 100.0);
                             }
 
-                            case ByLocalTime-> {
+                            case ByLocalTime -> {
                                 List<ByLocalTime> slots = new ArrayList<>(policy.getByLocalTime());
                                 slots.sort(Comparator.comparing(ByLocalTime::getFromhour));
                                 LocalTime endTimee = time.plusHours(hours);
                                 double totalCost = 0.0;
                                 ByLocalTime by;
-                                for (int i=0; i<slots.size(); i++){
-                                    if ((time.equals(slots.get(i).getFromhour()) || time.isAfter(slots.get(i).getFromhour())) && time.isBefore(slots.get(i).getTohour())){
+                                for (int i = 0; i < slots.size(); i++) {
+                                    if ((time.equals(slots.get(i).getFromhour()) || time.isAfter(slots.get(i).getFromhour())) && time.isBefore(slots.get(i).getTohour())) {
                                         by = slots.get(i);
-                                        if(endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour())){
-                                            totalCost=by.getCostofTime()*hours;
+                                        if (endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour())) {
+                                            totalCost = by.getCostofTime() * hours;
                                             break;
-                                        }
-                                        else {
+                                        } else {
                                             long todurationhours = Math.abs(Duration.between(time, slots.get(i).getTohour()).toHours());
-                                            totalCost=by.getCostofTime()*todurationhours;
-                                            for (i=i+1; i<slots.size(); i++){
-                                                if ((endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour()))){
+                                            totalCost = by.getCostofTime() * todurationhours;
+                                            for (i = i + 1; i < slots.size(); i++) {
+                                                if ((endTimee.isBefore(slots.get(i).getTohour()) || endTimee.equals(slots.get(i).getTohour()))) {
                                                     long newdurationshours = Math.abs(Duration.between(slots.get(i).getFromhour(), endTimee).toHours());
-                                                    totalCost = totalCost + slots.get(i).getCostofTime()* newdurationshours;
+                                                    totalCost = totalCost + slots.get(i).getCostofTime() * newdurationshours;
                                                     break;
-                                                }
-                                                else{
+                                                } else {
                                                     long newdurationshours = Math.abs(Duration.between(slots.get(i).getFromhour(), slots.get(i).getTohour()).toHours());
-                                                    totalCost = totalCost + slots.get(i).getCostofTime()* newdurationshours;
+                                                    totalCost = totalCost + slots.get(i).getCostofTime() * newdurationshours;
 
                                                 }
                                             }
@@ -257,8 +250,6 @@ public class Controller_Booking {
                                 }
                                 parkingresponce.put("cost", Math.round(totalCost * 100.0) / 100.0);
                             }
-
-
 
 
                         }
@@ -266,8 +257,7 @@ public class Controller_Booking {
                     }
                 }
 
-            }
-            else{
+            } else {
                 parkingresponce.put("available", false);
 
             }
@@ -278,6 +268,7 @@ public class Controller_Booking {
 
             parkingsresponces.add(parkingresponce);
         }
+    }
 
         response.put("Parkings", parkingsresponces);
 
@@ -286,6 +277,8 @@ public class Controller_Booking {
 
     }
 
+
+    //---------------NEW BOOKING------------------------------------------//
 
     @Transactional
     @PostMapping("/newBooking")
