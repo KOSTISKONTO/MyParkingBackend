@@ -67,6 +67,7 @@ public class Controller_User {
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Καταχωρήθηκε"));
     }
 
+
     @PostMapping("/register_owner")
     public ResponseEntity<?> registerOwner(@RequestBody  Users user){
         user.setCustomer(false);
