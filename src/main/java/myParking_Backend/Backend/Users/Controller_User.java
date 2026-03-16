@@ -63,7 +63,7 @@ public class Controller_User {
         String subject = "Επιτυχής Εγγραφή στο myParking!";
         String body = user.getUsername() + "καλωσήρθες στο myParking! Σε ευχαριστούμε για την εγγραφή. Ήρθε η ώρα για την πρώτη σου κράτηση. Μπες στην εφαρμογή: " +
                 "http:localhost:4200 " + "και ξεκίνα!";
-        this.emailService.sendSimpleEmail(email, subject, body);
+        //this.emailService.sendSimpleEmail(email, subject, body);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Καταχωρήθηκε"));
     }
 
