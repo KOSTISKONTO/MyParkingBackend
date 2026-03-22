@@ -147,7 +147,7 @@ public class Controller_Parking {
             service_parking.savewithoneuser(parking, user);
             List<ResponceCities> cities = service_parking.getCities();
             webSocketController.broadcastCities(cities);
-            emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από διαχειριστή εφαρμογής.");
+            //emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από διαχειριστή εφαρμογής.");
             return ResponseEntity.ok(Map.of("message", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από διαχειριστή εφαρμογής.)"));
 
         }
@@ -160,7 +160,7 @@ public class Controller_Parking {
             users.add(service_Users.getUserByAfm_Owner(user.getAfm_Owner()));
         }
         service_parking.savewithmanyusers(parking, users);
-        emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από έτερους ιδιοκτήτες και κατόπιν από διαχειριστή εφαρμογής.");
+       // emailService.sendSimpleEmail(user.getEmail(), "Επιτυχής Καταχώρηση parking!", "Το πάρκινγκ καταχωρήθηκε με επιτυχία!(Αναμονή Έγκρισης από έτερους ιδιοκτήτες και κατόπιν από διαχειριστή εφαρμογής.");
         return ResponseEntity.ok(Map.of("message", "Το πάρκινγκ καταχωρήθηκε με επιτυχία! (Αναμονή Έγκρισης από έτερους ιδιοκτήτες και κατόπιν από διαχειριστή εφαρμογής."));
         //todo email notification
 
