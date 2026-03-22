@@ -115,7 +115,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200", "https://myparkingfrontent-fchsarc6djhub7b7.canadacentral-01.azurewebsites.net")); // 🔥 Επιτρέπουμε το Angular
+        configuration.setAllowedOrigins(List.of("http://localhost:4200", "https://myparkingfrontend-hbg5andyd9hbg5dd.canadacentral-01.azurewebsites.net/")); // 🔥 Επιτρέπουμε το Angular
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Επιτρεπόμενες HTTP μέθοδοι
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
         //configuration.setAllowCredentials(true); // 🔥 Ενεργοποιεί τα cookies!
