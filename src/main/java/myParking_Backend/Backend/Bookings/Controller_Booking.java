@@ -310,7 +310,7 @@ public class Controller_Booking {
         service_Booking.newBooking(booking);
         List<ResponceCities> popularcities = this.service_Booking.getpopularCities();
         webSocketController.broadcastCities(popularcities);
-        emailService.sendSimpleEmail(email, "Κράτηση", "Καταχωρήθηκε με επιτυχία!" );
+        //emailService.sendSimpleEmail(email, "Κράτηση", "Καταχωρήθηκε με επιτυχία!" );
         return ResponseEntity.ok(Map.of("message", "Καταχωρήθηκε με επιτυχία!"));
 
     }
